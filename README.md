@@ -1,12 +1,11 @@
 # chunk_allocator
-chunk allocator for stl
-
-在使用std::map/list/queue/...时，其频繁的内存分配将产生巨大的开销。
-这类容器的显著特点是，他们每次都分配固定大小的内存块。
-我针对这一特征，设计了该内存池。
-分2级缓存，一级缓存不加锁，二级缓存为全局内存池须加锁。
+## chunk allocator for STL containers(map/list/queue/...).
 
 
+- 有一类容器(map/list/queue/...)每次都分配固定大小的内存块，该allocator的设计即是为了避免这类容器频繁的内存分配产生的巨大开销。
+- 该分配器设计要点是2级缓存，一级缓存为局部内存池不加锁零消耗速度超快，二级缓存为全局内存池须加锁调用频度低一些。
+
+```
 using stm::map;
 using std::string;
 
@@ -15,3 +14,4 @@ for(int i = 0; i < 10000; i ++)
 {
   rds.insert(std::make_pair(i,i));
 }
+```
