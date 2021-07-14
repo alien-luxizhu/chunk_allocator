@@ -1,11 +1,11 @@
-﻿#ifndef __CHUNK_ALLOCATOR_DA5382FF_4444_4416_99D3_2EA9F0081D78
+#ifndef __CHUNK_ALLOCATOR_DA5382FF_4444_4416_99D3_2EA9F0081D78
 #define __CHUNK_ALLOCATOR_DA5382FF_4444_4416_99D3_2EA9F0081D78
 #pragma once
 #include <mutex>
 #include <type_traits>
 
 namespace stm {
-    //该分配器只适用于map/list/queue
+    //only for map/list/queue
     //每次只分配固定尺寸的内存块
     template<typename _Tp> class allocator
     {
@@ -25,14 +25,18 @@ namespace stm {
                 px->next = plextor;
                 plextor = px;
                 pointer p = px->data;
-                for (int i = 0; i < AllocSize; i++) {
+                for (int i = 0; i < AllocSize; i++)
+                {
                     chunk* ptr = (chunk*)p++;
                     ptr->next = free_thunks;
                     free_thunks = ptr;
                 }
             }
 
-            Pool() { }
+            Pool() {
+                free_thunks = nullptr;
+                plextor = nullptr;
+            }
 
             ~Pool()
             {
@@ -73,16 +77,8 @@ namespace stm {
                 }
                 return plist;
             }
-
-            //全局一级缓存(单例)
-            static Pool* _G() {
-                static Pool S_pool_global;
-                return &S_pool_global;
-            }
         };
-        //本地二级缓存
-        chunk* free_list = nullptr;
-        static constexpr Pool* (*const get_pool)() = Pool::_G;
+
     public:
         typedef size_t     size_type;
         typedef ptrdiff_t  difference_type;
@@ -99,7 +95,7 @@ namespace stm {
 
         typedef std::true_type propagate_on_container_move_assignment;
 
-        allocator() {}
+        allocator() { free_list = nullptr; }
 
         allocator(const allocator& __a) {}
 
@@ -110,11 +106,11 @@ namespace stm {
 
         template<typename _Tp1>
         allocator(const allocator<_Tp1>&) {
-            free_list = get_pool()->get(5);
+            free_list = _G.get(5);
         }
 
         ~allocator() throw() {
-            get_pool()->free(free_list);
+            _G.free(free_list);
         }
 
         // 
@@ -132,7 +128,7 @@ namespace stm {
                 throw std::bad_alloc();
             chunk *ptr = free_list;
             if (ptr == nullptr)
-                ptr = get_pool()->get();
+                ptr = _G.get();
             free_list = ptr->next;
             return (pointer)ptr;
         }
@@ -158,7 +154,15 @@ namespace stm {
         inline bool operator==(const allocator&) const {
             return true;
         }
+    private:
+        //本地二级缓存
+        chunk* free_list = nullptr;
+        //全局一级缓存
+        static Pool _G;
     };
+
+    template<typename _Tp> 
+    typename allocator<_Tp>::Pool allocator<_Tp>::_G;
 
     template<typename _T>
     using fast_allocator = stm::allocator<_T>;
